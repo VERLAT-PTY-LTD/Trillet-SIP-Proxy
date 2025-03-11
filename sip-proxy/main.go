@@ -12,58 +12,85 @@ import (
 )
 
 var (
-	bindAddr       = flag.String("bind", ":5060", "Address to bind the SIP proxy to")
-	livekitSIPAddr = flag.String("target", "12uujhkwedv.sip.livekit.cloud:5060", "LiveKit SIP server address")
-	redisAddr      = flag.String("redis", "", "Existing Redis address if using LiveKit server")
+	// Declare the variables but don't define the flags yet
+	bindAddr       string
+	livekitSIPAddr string
+	redisAddr      string
+	
+	// Track if flags were explicitly set by command line
+	bindAddrWasSet = false
+	targetAddrWasSet = false
+	redisAddrWasSet = false
 )
 
 func main() {
+	// Define the flags here only once
+	flag.StringVar(&bindAddr, "bind", ":5060", "Address to bind the SIP proxy to")
+	flag.StringVar(&livekitSIPAddr, "target", "12uujhkwedv.sip.livekit.cloud:5060", "LiveKit SIP server address")
+	flag.StringVar(&redisAddr, "redis", "", "Existing Redis address if using LiveKit server")
+
+	// Check which flags were explicitly set before parsing
+	for i, arg := range os.Args {
+		if i+1 < len(os.Args) {
+			if arg == "-bind" || arg == "--bind" {
+				bindAddrWasSet = true
+			}
+			if arg == "-target" || arg == "--target" {
+				targetAddrWasSet = true
+			}
+			if arg == "-redis" || arg == "--redis" {
+				redisAddrWasSet = true
+			}
+		}
+	}
+
+	// Parse the flags
 	flag.Parse()
 
 	// Check for environment variables, with flags taking precedence
-	if envBindAddr := os.Getenv("BIND_ADDR"); envBindAddr != "" && !flag.Lookup("bind").Changed {
-		*bindAddr = envBindAddr
+	if envBindAddr := os.Getenv("BIND_ADDR"); envBindAddr != "" && !bindAddrWasSet {
+		bindAddr = envBindAddr
 	}
 	
-	if envLivekitSIPAddr := os.Getenv("LIVEKIT_SIP_ADDR"); envLivekitSIPAddr != "" && !flag.Lookup("target").Changed {
-		*livekitSIPAddr = envLivekitSIPAddr
+	if envLivekitSIPAddr := os.Getenv("LIVEKIT_SIP_ADDR"); envLivekitSIPAddr != "" && !targetAddrWasSet {
+		livekitSIPAddr = envLivekitSIPAddr
 	}
 	
-	if envRedisAddr := os.Getenv("REDIS_ADDR"); envRedisAddr != "" && !flag.Lookup("redis").Changed {
-		*redisAddr = envRedisAddr
+	if envRedisAddr := os.Getenv("REDIS_ADDR"); envRedisAddr != "" && !redisAddrWasSet {
+		redisAddr = envRedisAddr
 	}
 
-	log.Printf("Starting SIP proxy on %s -> %s", *bindAddr, *livekitSIPAddr)
-	if *redisAddr != "" {
-		log.Printf("Using Redis at %s", *redisAddr)
+	log.Printf("Starting SIP proxy on %s -> %s", bindAddr, livekitSIPAddr)
+	if redisAddr != "" {
+		log.Printf("Using Redis at %s", redisAddr)
 	}
 	
 	// Create UDP listening socket for SIP
-	udpAddr, err := net.ResolveUDPAddr("udp", *bindAddr)
+	udpAddr, err := net.ResolveUDPAddr("udp", bindAddr)
 	if err != nil {
 		log.Fatalf("Failed to resolve bind address: %v", err)
 	}
 	
 	listener, err := net.ListenUDP("udp", udpAddr)
 	if err != nil {
-		log.Fatalf("Failed to bind to %s: %v", *bindAddr, err)
+		log.Fatalf("Failed to bind to %s: %v", bindAddr, err)
 	}
 	defer listener.Close()
 	
 	// Create TCP listening socket for SIP
-	tcpAddr, err := net.ResolveTCPAddr("tcp", *bindAddr)
+	tcpAddr, err := net.ResolveTCPAddr("tcp", bindAddr)
 	if err != nil {
 		log.Fatalf("Failed to resolve TCP bind address: %v", err)
 	}
 	
 	tcpListener, err := net.ListenTCP("tcp", tcpAddr)
 	if err != nil {
-		log.Fatalf("Failed to bind TCP to %s: %v", *bindAddr, err)
+		log.Fatalf("Failed to bind TCP to %s: %v", bindAddr, err)
 	}
 	defer tcpListener.Close()
 	
 	// Create a proxy handler
-	proxy := NewSIPProxy(*livekitSIPAddr)
+	proxy := NewSIPProxy(livekitSIPAddr)
 	
 	// Start the UDP proxy
 	go proxy.StartUDP(listener)
