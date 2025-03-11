@@ -1,0 +1,8 @@
+# Terraform Variables Template
+# Copy this file to terraform.tfvars and modify as needed
+
+# AWS Region
+aws_region = "us-east-1"
+
+# Existing Redis endpoint (optional)
+# existing_redis_endpoint = "your-redis-endpoint.cache.amazonaws.com:6379" 

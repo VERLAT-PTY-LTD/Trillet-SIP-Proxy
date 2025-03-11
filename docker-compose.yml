@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  sip-proxy:
+    build:
+      context: ./sip-proxy
+      dockerfile: Dockerfile
+    image: sip-proxy:local
+    container_name: sip-proxy
+    ports:
+      - "5060:5060/udp"
+      - "5060:5060/tcp"
+    environment:
+      # These will be used as environment variables
+      # They can be accessed via os.Getenv in the Go application
+      - BIND_ADDR=${BIND_ADDR:-:5060}
+      - LIVEKIT_SIP_ADDR=${LIVEKIT_SIP_ADDR:-12uujhkwedv.sip.livekit.cloud:5060}
+      # Uncomment and set if needed
+      - REDIS_ADDR=${REDIS_ADDR:-}
+    restart: unless-stopped
+    # Command can be used to override the default entrypoint and pass flags
+    # Uncomment if you want to explicitly set command-line arguments
+    # command: ["/app/sip-proxy", "-bind", ":5060", "-target", "12uujhkwedv.sip.livekit.cloud:5060"]
+
+# Uncomment if you need Redis locally for testing
+# redis:
+#   image: redis:alpine
+#   container_name: redis
+#   ports:
+#     - "6379:6379"
+#   volumes:
+#     - redis-data:/data
+#   restart: unless-stopped
+
+# volumes:
+#   redis-data: 
